@@ -43,7 +43,10 @@ import cv2
 import os
 import os.path
 from os import path
+
 from utils.heatmap_generator import HMap
+from utils.streamer import StreamServer
+stream_server = StreamServer(host="192.168.0.181")
 
 fps_streams={}
 frame_count={}
@@ -184,6 +187,7 @@ def generate_heatmap(image,obj_meta,confidence, stream_idx):
     # image=cv2.putText(image,obj_name+',C='+str(confidence),(left-10,top-10),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,255,0),2)
     # cv2.imwrite("frames/{}.jpg".format(hmap.name), heatmap_frame)
     # cv2.imwrite("frames/stream_"+str(hmap.name)+".jpg", heatmap_frame)
+    stream_server.send(heatmap_frame)
     return heatmap_frame
 
 # def draw_bounding_boxes(image,obj_meta,confidence):

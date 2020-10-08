@@ -5,7 +5,10 @@ RUN git clone https://github.com/NVIDIA-AI-IOT/deepstream_python_apps.git $DS_PY
 RUN bash -c "cd /opt/nvidia/deepstream/deepstream/lib && python3 setup.py install"
 RUN apt-get update -y \
     && apt-get install vim python3-numpy python3-opencv -y \
-    && apt install python3-gi python3-dev python3-gst-1.0 -y
+    && apt install python3-gi python3-dev python3-gst-1.0 -y \
+    && apt-get install python3-pip -y
 
 WORKDIR $DS_PYTHON/apps/maskout
 COPY . .
+
+RUN pip3 install -r utils/requirements.txt
