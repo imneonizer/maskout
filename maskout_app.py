@@ -43,31 +43,38 @@ import cv2
 import os
 import os.path
 from os import path
+from utils.heatmap_generator import HMap
+
 fps_streams={}
 frame_count={}
 saved_count={}
+HMAP = {}
 global PGIE_CLASS_ID_VEHICLE
 PGIE_CLASS_ID_VEHICLE=0
 global PGIE_CLASS_ID_PERSON
 PGIE_CLASS_ID_PERSON=2
 
 MAX_DISPLAY_LEN=64
-PGIE_CLASS_ID_VEHICLE = 0
-PGIE_CLASS_ID_BICYCLE = 1
-PGIE_CLASS_ID_PERSON = 2
-PGIE_CLASS_ID_ROADSIGN = 3
-MUXER_OUTPUT_WIDTH=1920
-MUXER_OUTPUT_HEIGHT=1080
+# PGIE_CLASS_ID_VEHICLE = 2
+# PGIE_CLASS_ID_BICYCLE = 1
+# PGIE_CLASS_ID_PERSON = 0
+# PGIE_CLASS_ID_ROADSIGN = 3
+MUXER_OUTPUT_WIDTH=1280
+MUXER_OUTPUT_HEIGHT=720
 MUXER_BATCH_TIMEOUT_USEC=4000000
-TILED_OUTPUT_WIDTH=1920
-TILED_OUTPUT_HEIGHT=1080
+TILED_OUTPUT_WIDTH=1280
+TILED_OUTPUT_HEIGHT=720
 GST_CAPS_FEATURES_NVMM="memory:NVMM"
-pgie_classes_str= ["Vehicle", "TwoWheeler", "Person","RoadSign"]
+
+global ST
+ST = time.time()
+# pgie_classes_str= ["Vehicle", "TwoWheeler", "Person","RoadSign"]
 
 
 # tiler_sink_pad_buffer_probe  will extract metadata received on tiler src pad
 # and update params for drawing rectangle, object information etc.
 def tiler_sink_pad_buffer_probe(pad,info,u_data):
+    global ST
     frame_number=0
     num_rects=0
     gst_buffer = info.get_buffer()
@@ -92,71 +99,105 @@ def tiler_sink_pad_buffer_probe(pad,info,u_data):
         except StopIteration:
             break
 
-        frame_number=frame_meta.frame_num
-        l_obj=frame_meta.obj_meta_list
-        num_rects = frame_meta.num_obj_meta
-        is_first_obj = True
-        save_image = False
-        obj_counter = {
-        PGIE_CLASS_ID_VEHICLE:0,
-        PGIE_CLASS_ID_PERSON:0,
-        PGIE_CLASS_ID_BICYCLE:0,
-        PGIE_CLASS_ID_ROADSIGN:0
-        }
+        frame_number = frame_meta.frame_num
+        l_obj = frame_meta.obj_meta_list
+        # num_rects = frame_meta.num_obj_meta
+        # is_first_obj = True
         while l_obj is not None:
             try: 
                 # Casting l_obj.data to pyds.NvDsObjectMeta
                 obj_meta=pyds.NvDsObjectMeta.cast(l_obj.data)
             except StopIteration:
                 break
-            obj_counter[obj_meta.class_id] += 1
+            # obj_counter[obj_meta.class_id] += 1
             # Periodically check for objects with borderline confidence value that may be false positive detections.
             # If such detections are found, annoate the frame with bboxes and confidence value.
             # Save the annotated frame to file.
-            if((saved_count["stream_"+str(frame_meta.pad_index)]%30==0) and (obj_meta.confidence>0.3 and obj_meta.confidence<0.31)):
-                if is_first_obj:
-                    is_first_obj = False
-                    # Getting Image data using nvbufsurface
-                    # the input should be address of buffer and batch_id
-                    n_frame=pyds.get_nvds_buf_surface(hash(gst_buffer),frame_meta.batch_id)
-                    #convert python array into numy array format.
-                    frame_image=np.array(n_frame,copy=True,order='C')
-                    #covert the array into cv2 default color format
-                    frame_image=cv2.cvtColor(frame_image,cv2.COLOR_RGBA2BGRA)
 
-                save_image = True
-                frame_image=draw_bounding_boxes(frame_image,obj_meta,obj_meta.confidence)
+            # if((saved_count["stream_"+str(frame_meta.pad_index)]%30==0) and (obj_meta.confidence>0.3 and obj_meta.confidence<0.31)):
+            #     if is_first_obj:
+            #         is_first_obj = False
+            #         # Getting Image data using nvbufsurface
+            #         # the input should be address of buffer and batch_id
+            #         n_frame=pyds.get_nvds_buf_surface(hash(gst_buffer),frame_meta.batch_id)
+            #         #convert python array into numy array format.
+            #         frame_image=np.array(n_frame,copy=True,order='C')
+            #         #covert the array into cv2 default color format
+            #         frame_image=cv2.cvtColor(frame_image,cv2.COLOR_RGBA2BGRA)
+
+            #     save_image = True
+            #     frame_image=draw_bounding_boxes(frame_image,obj_meta,obj_meta.confidence)
+
+
+            # if((obj_meta.confidence>0.3 and obj_meta.confidence<0.31)):
+            # if is_first_obj:
+                # is_first_obj = False
+            if time.time() - ST > 0.2:
+                # generate heatmap at intervals
+                n_frame = pyds.get_nvds_buf_surface(hash(gst_buffer),frame_meta.batch_id)
+                #convert python array into numy array format.
+                frame_image = np.array(n_frame,copy=True,order='C')
+                #covert the array into cv2 default color format
+                frame_image = cv2.cvtColor(frame_image,cv2.COLOR_RGBA2BGR)
+                #draw bounding boxes and other metadata
+                frame_image = generate_heatmap(frame_image,obj_meta,obj_meta.confidence,frame_meta.pad_index)
+                ST = time.time()
+
+            # print("frame accessible")
+
             try: 
                 l_obj=l_obj.next
             except StopIteration:
                 break
 
-        print("Frame Number=", frame_number, "Number of Objects=",num_rects,"Vehicle_count=",obj_counter[PGIE_CLASS_ID_VEHICLE],"Person_count=",obj_counter[PGIE_CLASS_ID_PERSON])
+        # print("Frame Number=", frame_number, "Number of Objects=",num_rects,"Person_count=",obj_counter[PGIE_CLASS_ID_PERSON])
         
         # Get frame rate through this probe
         fps_streams["stream{0}".format(frame_meta.pad_index)].get_fps()
-        if save_image:
-            cv2.imwrite(folder_name+"/stream_"+str(frame_meta.pad_index)+"/frame_"+str(frame_number)+".jpg",frame_image)
-        saved_count["stream_"+str(frame_meta.pad_index)]+=1        
+        # if save_image:
+            # cv2.imwrite(folder_name+"/stream_"+str(frame_meta.pad_index)+"/frame_"+str(frame_number)+".jpg",frame_image)
+        # saved_count["stream_"+str(frame_meta.pad_index)]+=1 
+
         try:
             l_frame=l_frame.next
+            pass
         except StopIteration:
             break
 
     return Gst.PadProbeReturn.OK
 
-def draw_bounding_boxes(image,obj_meta,confidence):
-    confidence='{0:.2f}'.format(confidence)
-    rect_params=obj_meta.rect_params
-    top=int(rect_params.top)
-    left=int(rect_params.left)
-    width=int(rect_params.width)
-    height=int(rect_params.height)
-    obj_name=pgie_classes_str[obj_meta.class_id]
-    image=cv2.rectangle(image,(left,top),(left+width,top+height),(0,0,255,0),2)
-    # Note that on some systems cv2.putText erroneously draws horizontal lines across the image
-    image=cv2.putText(image,obj_name+',C='+str(confidence),(left-10,top-10),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,255,0),2)
-    return image
+
+def generate_heatmap(image,obj_meta,confidence, stream_idx):
+    hmap = HMAP[stream_idx]
+    rect_params = obj_meta.rect_params
+    bbox = int(rect_params.left), \
+        int(rect_params.top), \
+        int(rect_params.left) + int(rect_params.width), \
+        int(rect_params.top) + int(rect_params.height)
+    
+    hmap.apply_color_map(bbox)
+    heatmap_frame = hmap.get_heatmap(image)
+
+    # obj_name=pgie_classes_str[obj_meta.class_id]
+    # image=cv2.rectangle(image,(left,top),(left+width,top+height),(0,0,255,0),2)
+    # # Note that on some systems cv2.putText erroneously draws horizontal lines across the image
+    # image=cv2.putText(image,obj_name+',C='+str(confidence),(left-10,top-10),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,255,0),2)
+    # cv2.imwrite("frames/{}.jpg".format(hmap.name), heatmap_frame)
+    # cv2.imwrite("frames/stream_"+str(hmap.name)+".jpg", heatmap_frame)
+    return heatmap_frame
+
+# def draw_bounding_boxes(image,obj_meta,confidence):
+#     confidence='{0:.2f}'.format(confidence)
+#     rect_params=obj_meta.rect_params
+#     top=int(rect_params.top)
+#     left=int(rect_params.left)
+#     width=int(rect_params.width)
+#     height=int(rect_params.height)
+#     obj_name=pgie_classes_str[obj_meta.class_id]
+#     image=cv2.rectangle(image,(left,top),(left+width,top+height),(0,0,255,0),2)
+#     # Note that on some systems cv2.putText erroneously draws horizontal lines across the image
+#     image=cv2.putText(image,obj_name+',C='+str(confidence),(left-10,top-10),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,255,0),2)
+#     return image
 
 def cb_newpad(decodebin, decoder_src_pad,data):
     print("In cb_newpad\n")
@@ -225,23 +266,29 @@ def create_source_bin(index,uri):
     return nbin
 
 def main(args):
+    enable_sink = False
+    enable_osd = False
+
     # Check input arguments
     if len(args) < 2:
         sys.stderr.write("usage: %s <uri1> [uri2] ... [uriN] <folder to save frames>\n" % args[0])
         sys.exit(1)
 
     for i in range(0,len(args)-2):
-        fps_streams["stream{0}".format(i)]=GETFPS(i)
+        global HMAP
+        name = "stream{0}".format(i)
+        HMAP[i] = HMap(TILED_OUTPUT_WIDTH, TILED_OUTPUT_HEIGHT, name)
+        fps_streams[name]=GETFPS(i)
     number_sources=len(args)-2
 
-    global folder_name
-    folder_name=args[-1]
-    if path.exists(folder_name):
-        sys.stderr.write("The output folder %s already exists. Please remove it first.\n" % folder_name)
-        sys.exit(1)
+    # global folder_name
+    # folder_name=args[-1]
+    # if path.exists(folder_name):
+    #     sys.stderr.write("The output folder %s already exists. Please remove it first.\n" % folder_name)
+    #     sys.exit(1)
 
-    os.mkdir(folder_name)
-    print("Frames will be saved in ",folder_name)
+    # os.mkdir(folder_name)
+    # print("Frames will be saved in ",folder_name)
     # Standard GStreamer initialization
     GObject.threads_init()
     Gst.init(None)
@@ -263,9 +310,9 @@ def main(args):
 
     pipeline.add(streammux)
     for i in range(number_sources):
-        os.mkdir(folder_name+"/stream_"+str(i))
-        frame_count["stream_"+str(i)]=0
-        saved_count["stream_"+str(i)]=0
+        # os.mkdir(folder_name+"/stream_"+str(i))
+        # frame_count["stream_"+str(i)]=0
+        # saved_count["stream_"+str(i)]=0
         print("Creating source_bin ",i," \n ")
         uri_name=args[i+1]
         if uri_name.find("rtsp://") == 0 :
@@ -297,6 +344,8 @@ def main(args):
     config.sections()
 
     for key in config['tracker']:
+        if key == "enable" :
+            tracker_enable = config.getint('tracker', key)
         if key == 'tracker-width' :
             tracker_width = config.getint('tracker', key)
             tracker.set_property('tracker-width', tracker_width)
@@ -348,7 +397,7 @@ def main(args):
 
     print("Creating EGLSink \n")
     sink = Gst.ElementFactory.make("nveglglessink", "nvvideo-renderer")
-    #sink = Gst.ElementFactory.make("fakesink", "fakesink")
+    # sink = Gst.ElementFactory.make("fakesink", "fakesink")
     if not sink:
         sys.stderr.write(" Unable to create egl sink \n")
 
@@ -356,8 +405,8 @@ def main(args):
         print("Atleast one of the sources is live")
         streammux.set_property('live-source', 1)
 
-    streammux.set_property('width', 1920)
-    streammux.set_property('height', 1080)
+    streammux.set_property('width', 1280)
+    streammux.set_property('height', 720)
     streammux.set_property('batch-size', number_sources)
     streammux.set_property('batched-push-timeout', 4000000)
     pgie.set_property('config-file-path', "model/primary_inference.txt")
@@ -385,7 +434,8 @@ def main(args):
 
     print("Adding elements to Pipeline \n")
     pipeline.add(pgie)
-    pipeline.add(tracker)
+    if tracker_enable:
+        pipeline.add(tracker)
     pipeline.add(tiler)
     pipeline.add(nvvidconv)
     pipeline.add(filter1)
@@ -397,17 +447,29 @@ def main(args):
 
     print("Linking elements in the Pipeline \n")
     streammux.link(pgie)
-    pgie.link(tracker)
-    tracker.link(nvvidconv1)
+    if tracker_enable:
+        pgie.link(tracker)
+        tracker.link(nvvidconv1)
+    else:
+        pgie.link(nvvidconv1)
     nvvidconv1.link(filter1)
     filter1.link(tiler)
     tiler.link(nvvidconv)
-    nvvidconv.link(nvosd)
+    if enable_osd:
+        nvvidconv.link(nvosd)
+
     if is_aarch64():
-        nvosd.link(transform)
+        if enable_osd:
+            nvosd.link(transform)
+        else:
+            nvvidconv.link(transform)
         transform.link(sink)
     else:
-        nvosd.link(sink)
+        if enable_osd:
+            nvosd.link(sink)
+        else:
+            nvvidconv.link(sink)
+
 
     # create an event loop and feed gstreamer bus mesages to it
     loop = GObject.MainLoop()

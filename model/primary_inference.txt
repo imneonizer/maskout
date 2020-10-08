@@ -25,7 +25,7 @@ gpu-id=0
 net-scale-factor=0.0039215697906911373
 tlt-model-key=tlt_encode
 tlt-encoded-model=resnet18_peoplenet_pruned.etlt
-model-engine-file=resnet18_peoplenet_pruned.etlt_b1_gpu0_fp16.engine
+model-engine-file=resnet18_peoplenet_pruned.etlt_b2_gpu0_fp16.engine
 labelfile-path=labels.txt
 input-dims=3;544;960;0
 uff-input-blob-name=input_1
@@ -41,17 +41,22 @@ gie-unique-id=1
 output-blob-names=output_bbox/BiasAdd;output_cov/Sigmoid
 
 [class-attrs-all]
-pre-cluster-threshold=0.4
+pre-cluster-threshold=0.3
 ## Set eps=0.7 and minBoxes for cluster-mode=1(DBSCAN)
 eps=0.7
 minBoxes=1
 
 # To supress other class detections
 # This will speed up the inference
+
+[class-attrs-0]
+# person
+pre-cluster-threshold=1
+
 [class-attrs-1]
 # bag
 pre-cluster-threshold=1
 
 [class-attrs-2]
 # face
-pre-cluster-threshold=1
+pre-cluster-threshold=0.3
