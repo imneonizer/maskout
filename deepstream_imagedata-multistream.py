@@ -132,6 +132,7 @@ def tiler_sink_pad_buffer_probe(pad,info,u_data):
                 break
 
         print("Frame Number=", frame_number, "Number of Objects=",num_rects,"Vehicle_count=",obj_counter[PGIE_CLASS_ID_VEHICLE],"Person_count=",obj_counter[PGIE_CLASS_ID_PERSON])
+        
         # Get frame rate through this probe
         fps_streams["stream{0}".format(frame_meta.pad_index)].get_fps()
         if save_image:
@@ -285,6 +286,36 @@ def main(args):
     pgie = Gst.ElementFactory.make("nvinfer", "primary-inference")
     if not pgie:
         sys.stderr.write(" Unable to create pgie \n")
+    
+    tracker = Gst.ElementFactory.make("nvtracker", "tracker")
+    if not tracker:
+        sys.stderr.write(" Unable to create tracker \n")
+    
+    #Set properties of tracker
+    config = configparser.ConfigParser()
+    config.read('model/tracker_config.txt')
+    config.sections()
+
+    for key in config['tracker']:
+        if key == 'tracker-width' :
+            tracker_width = config.getint('tracker', key)
+            tracker.set_property('tracker-width', tracker_width)
+        if key == 'tracker-height' :
+            tracker_height = config.getint('tracker', key)
+            tracker.set_property('tracker-height', tracker_height)
+        if key == 'gpu-id' :
+            tracker_gpu_id = config.getint('tracker', key)
+            tracker.set_property('gpu_id', tracker_gpu_id)
+        if key == 'll-lib-file' :
+            tracker_ll_lib_file = config.get('tracker', key)
+            tracker.set_property('ll-lib-file', tracker_ll_lib_file)
+        if key == 'll-config-file' :
+            tracker_ll_config_file = config.get('tracker', key)
+            tracker.set_property('ll-config-file', tracker_ll_config_file)
+        if key == 'enable-batch-process' :
+            tracker_enable_batch_process = config.getint('tracker', key)
+            tracker.set_property('enable_batch_process', tracker_enable_batch_process)
+        
     # Add nvvidconv1 and filter1 to convert the frames to RGBA
     # which is easier to work with in Python.
     print("Creating nvvidconv1 \n ")
@@ -329,7 +360,7 @@ def main(args):
     streammux.set_property('height', 1080)
     streammux.set_property('batch-size', number_sources)
     streammux.set_property('batched-push-timeout', 4000000)
-    pgie.set_property('config-file-path', "dstest_imagedata_config.txt")
+    pgie.set_property('config-file-path', "model/primary_inference.txt")
     pgie_batch_size=pgie.get_property("batch-size")
     if(pgie_batch_size != number_sources):
         print("WARNING: Overriding infer-config batch-size",pgie_batch_size," with number of sources ", number_sources," \n")
@@ -354,6 +385,7 @@ def main(args):
 
     print("Adding elements to Pipeline \n")
     pipeline.add(pgie)
+    pipeline.add(tracker)
     pipeline.add(tiler)
     pipeline.add(nvvidconv)
     pipeline.add(filter1)
@@ -364,8 +396,9 @@ def main(args):
     pipeline.add(sink)
 
     print("Linking elements in the Pipeline \n")
-    streammux.link(pgie)    
-    pgie.link(nvvidconv1)
+    streammux.link(pgie)
+    pgie.link(tracker)
+    tracker.link(nvvidconv1)
     nvvidconv1.link(filter1)
     filter1.link(tiler)
     tiler.link(nvvidconv)
