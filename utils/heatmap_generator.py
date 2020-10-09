@@ -23,8 +23,8 @@ class HMap:
     def get_mask_from_bbox(self, x1,y1,x2,y2):
         cx,cy = int(x1+(x2)/2), int(y1+(y2)/2)
         mask = np.zeros((self.height, self.width), np.uint8)
-        radius = int(((x2-x1)+(y2-y1))/2)
-        mask = cv2.circle(mask, (cx,cy), radius, (75,75,75), -1)
+        radius = 20#int(((x2-x1)+(y2-y1))/2)
+        mask = cv2.circle(mask, (x1,y1), radius, (75,75,75), -1)
         mask = cv2.blur(mask, (125,125), cv2.BORDER_DEFAULT)
         return mask
         

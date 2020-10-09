@@ -6,12 +6,16 @@ import threading
 import time
 
 class StreamServer:
-    def __init__(self, host="localhost", port=5555):
+    def __init__(self, host="localhost", zmq_port=5555):
         self.context = zmq.Context()
         self.footage_socket = self.context.socket(zmq.PUB)
+
+        # limit publisher buffer size
+        self.footage_socket.setsockopt(zmq.SNDHWM, 2)
+
         self.host = host
-        self.port = port
-        self.footage_socket.connect('tcp://{}:{}'.format(self.host, self.port))
+        self.zmq_port = zmq_port
+        self.footage_socket.bind('tcp://{}:{}'.format(self.host, self.zmq_port))
     
     def send(self, frame):
         try:
@@ -22,14 +26,16 @@ class StreamServer:
             print(e)
 
 class StreamClient:
-    def __init__(self, host="*", port=5555, width=1280, height=720):
+    def __init__(self, host="localhost", rtsp_port=8554, zmq_port=5555, width=1280, height=720, client="jetson"):
         self.context = zmq.Context()
         self.footage_socket = self.context.socket(zmq.SUB)
         self.host = host
-        self.port = port
-        self.footage_socket.bind('tcp://{}:{}'.format(self.host, self.port))
+        self.zmq_port = zmq_port
+        self.footage_socket.connect('tcp://{}:{}'.format(self.host, self.zmq_port))
         self.footage_socket.setsockopt_string(zmq.SUBSCRIBE, np.unicode(''))
 
+        self.client = client
+        self.rtsp_port = rtsp_port
         self.width = width
         self.height = height
         self.rtsp_frame = np.zeros((self.height, self.width, 3), np.uint8)
@@ -52,13 +58,16 @@ class StreamClient:
         cap = None
         while True:
             if not cap:
-                cap = self.VideoCapture("rtsp://localhost:8554/ds-test", 1280, 720, 200)
+                if self.client == "jetson":
+                    cap = self.VideoCapture("rtsp://{}:{}/ds-test".format(self.host, self.rtsp_port), self.width, self.height, 200)
+                else:
+                    cap = cv2.VideoCapture("rtsp://{}:{}/ds-test".format(self.host, self.rtsp_port))
             
             success, frame = cap.read()
             if not success:
                 cap = None
                 time.sleep(0.5)
-                
+
             if frame is not None:
                 # print("rtsp_frame:", frame.shape)
                 self.rtsp_frame = frame

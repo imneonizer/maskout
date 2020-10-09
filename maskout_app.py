@@ -47,8 +47,7 @@ from os import path
 
 from utils.heatmap_generator import HMap
 from utils.streamer import StreamServer
-stream_server = StreamServer(host="192.168.0.181")
-# stream_server = StreamServer(host="localhost")
+stream_server = StreamServer(host="0.0.0.0", zmq_port=5555)
 
 fps_streams={}
 frame_count={}
@@ -60,10 +59,6 @@ global PGIE_CLASS_ID_PERSON
 PGIE_CLASS_ID_PERSON=2
 
 MAX_DISPLAY_LEN=64
-# PGIE_CLASS_ID_VEHICLE = 2
-# PGIE_CLASS_ID_BICYCLE = 1
-# PGIE_CLASS_ID_PERSON = 0
-# PGIE_CLASS_ID_ROADSIGN = 3
 MUXER_OUTPUT_WIDTH=1280
 MUXER_OUTPUT_HEIGHT=720
 MUXER_BATCH_TIMEOUT_USEC=4000000
@@ -225,7 +220,7 @@ def create_source_bin(index,uri):
     return nbin
 
 def main(args):
-    enable_osd = False
+    enable_osd = 1
 
     for i in range(0,len(args)-1):
         global HMAP
