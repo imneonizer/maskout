@@ -3,7 +3,7 @@ import numpy as np
 import time
 
 class HMap:
-    def __init__(self, width, height, name, reset_interval=0.5):
+    def __init__(self, width, height, name, reset_interval=1):
         self.width = width
         self.height = height
         self.name = name

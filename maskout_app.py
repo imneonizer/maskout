@@ -111,7 +111,7 @@ def tiler_sink_pad_buffer_probe(pad,info,u_data):
                 break
 
             # generate heatmap at intervals
-            if time.time() - ST > 0.05:
+            if time.time() - ST > 0.04:
                 n_frame = pyds.get_nvds_buf_surface(hash(gst_buffer),frame_meta.batch_id)
                 #convert python array into numy array format.
                 frame_image = np.array(n_frame,copy=True,order='C')
@@ -220,7 +220,7 @@ def create_source_bin(index,uri):
     return nbin
 
 def main(args):
-    enable_osd = 1
+    enable_osd = 0
 
     for i in range(0,len(args)-1):
         global HMAP
