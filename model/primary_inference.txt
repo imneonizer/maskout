@@ -59,4 +59,4 @@ pre-cluster-threshold=1
 
 [class-attrs-2]
 # face
-pre-cluster-threshold=0.3
+pre-cluster-threshold=0.5

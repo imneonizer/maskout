@@ -112,29 +112,7 @@ def tiler_sink_pad_buffer_probe(pad,info,u_data):
                 obj_meta=pyds.NvDsObjectMeta.cast(l_obj.data)
             except StopIteration:
                 break
-            # obj_counter[obj_meta.class_id] += 1
-            # Periodically check for objects with borderline confidence value that may be false positive detections.
-            # If such detections are found, annoate the frame with bboxes and confidence value.
-            # Save the annotated frame to file.
 
-            # if((saved_count["stream_"+str(frame_meta.pad_index)]%30==0) and (obj_meta.confidence>0.3 and obj_meta.confidence<0.31)):
-            #     if is_first_obj:
-            #         is_first_obj = False
-            #         # Getting Image data using nvbufsurface
-            #         # the input should be address of buffer and batch_id
-            #         n_frame=pyds.get_nvds_buf_surface(hash(gst_buffer),frame_meta.batch_id)
-            #         #convert python array into numy array format.
-            #         frame_image=np.array(n_frame,copy=True,order='C')
-            #         #covert the array into cv2 default color format
-            #         frame_image=cv2.cvtColor(frame_image,cv2.COLOR_RGBA2BGRA)
-
-            #     save_image = True
-            #     frame_image=draw_bounding_boxes(frame_image,obj_meta,obj_meta.confidence)
-
-
-            # if((obj_meta.confidence>0.3 and obj_meta.confidence<0.31)):
-            # if is_first_obj:
-                # is_first_obj = False
             if time.time() - ST > 0.2:
                 # generate heatmap at intervals
                 n_frame = pyds.get_nvds_buf_surface(hash(gst_buffer),frame_meta.batch_id)
@@ -146,8 +124,6 @@ def tiler_sink_pad_buffer_probe(pad,info,u_data):
                 frame_image = generate_heatmap(frame_image,obj_meta,obj_meta.confidence,frame_meta.pad_index)
                 ST = time.time()
 
-            # print("frame accessible")
-
             try: 
                 l_obj=l_obj.next
             except StopIteration:
@@ -157,9 +133,6 @@ def tiler_sink_pad_buffer_probe(pad,info,u_data):
         
         # Get frame rate through this probe
         fps_streams["stream{0}".format(frame_meta.pad_index)].get_fps()
-        # if save_image:
-            # cv2.imwrite(folder_name+"/stream_"+str(frame_meta.pad_index)+"/frame_"+str(frame_number)+".jpg",frame_image)
-        # saved_count["stream_"+str(frame_meta.pad_index)]+=1 
 
         try:
             l_frame=l_frame.next
@@ -173,35 +146,15 @@ def tiler_sink_pad_buffer_probe(pad,info,u_data):
 def generate_heatmap(image,obj_meta,confidence, stream_idx):
     hmap = HMAP[stream_idx]
     rect_params = obj_meta.rect_params
-    bbox = int(rect_params.left), \
+    x1,y1,x2,y2 = int(rect_params.left), \
         int(rect_params.top), \
         int(rect_params.left) + int(rect_params.width), \
         int(rect_params.top) + int(rect_params.height)
     
-    hmap.apply_color_map(bbox)
+    hmap.apply_color_map(x1,y1,x2,y2)
     heatmap_frame = hmap.get_heatmap(image)
-
-    # obj_name=pgie_classes_str[obj_meta.class_id]
-    # image=cv2.rectangle(image,(left,top),(left+width,top+height),(0,0,255,0),2)
-    # # Note that on some systems cv2.putText erroneously draws horizontal lines across the image
-    # image=cv2.putText(image,obj_name+',C='+str(confidence),(left-10,top-10),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,255,0),2)
-    # cv2.imwrite("frames/{}.jpg".format(hmap.name), heatmap_frame)
-    # cv2.imwrite("frames/stream_"+str(hmap.name)+".jpg", heatmap_frame)
     stream_server.send(heatmap_frame)
     return heatmap_frame
-
-# def draw_bounding_boxes(image,obj_meta,confidence):
-#     confidence='{0:.2f}'.format(confidence)
-#     rect_params=obj_meta.rect_params
-#     top=int(rect_params.top)
-#     left=int(rect_params.left)
-#     width=int(rect_params.width)
-#     height=int(rect_params.height)
-#     obj_name=pgie_classes_str[obj_meta.class_id]
-#     image=cv2.rectangle(image,(left,top),(left+width,top+height),(0,0,255,0),2)
-#     # Note that on some systems cv2.putText erroneously draws horizontal lines across the image
-#     image=cv2.putText(image,obj_name+',C='+str(confidence),(left-10,top-10),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,255,0),2)
-#     return image
 
 def cb_newpad(decodebin, decoder_src_pad,data):
     print("In cb_newpad\n")
@@ -270,29 +223,14 @@ def create_source_bin(index,uri):
     return nbin
 
 def main(args):
-    enable_sink = False
     enable_osd = False
-
-    # Check input arguments
-    if len(args) < 2:
-        sys.stderr.write("usage: %s <uri1> [uri2] ... [uriN] <folder to save frames>\n" % args[0])
-        sys.exit(1)
-
-    for i in range(0,len(args)-2):
+    for i in range(0,len(args)-1):
         global HMAP
         name = "stream{0}".format(i)
         HMAP[i] = HMap(TILED_OUTPUT_WIDTH, TILED_OUTPUT_HEIGHT, name)
         fps_streams[name]=GETFPS(i)
-    number_sources=len(args)-2
+    number_sources=len(args)-1
 
-    # global folder_name
-    # folder_name=args[-1]
-    # if path.exists(folder_name):
-    #     sys.stderr.write("The output folder %s already exists. Please remove it first.\n" % folder_name)
-    #     sys.exit(1)
-
-    # os.mkdir(folder_name)
-    # print("Frames will be saved in ",folder_name)
     # Standard GStreamer initialization
     GObject.threads_init()
     Gst.init(None)

@@ -3,7 +3,7 @@ import numpy as np
 import time
 
 class HMap:
-    def __init__(self, width, height, name, reset_interval=10):
+    def __init__(self, width, height, name, reset_interval=30):
         self.width = width
         self.height = height
         self.name = name
@@ -20,8 +20,7 @@ class HMap:
     def adjust_brightness_contrast(self, image, brightness=0., contrast=0.):
         return cv2.addWeighted(image, 1 + float(contrast) / 100., image, 0, float(brightness))
         
-    def get_mask_from_bbox(self, bbox):
-        x1,y1,x2,y2 = bbox[0], bbox[1], bbox[2], bbox[3]
+    def get_mask_from_bbox(self, x1,y1,x2,y2):
         cx,cy = int(x1+(x2)/2), int(y1+(y2)/2)
         mask = np.zeros((self.height, self.width), np.uint8)
         radius = int(((x2-x1)+(y2-y1))/2)
@@ -29,13 +28,13 @@ class HMap:
         mask = cv2.blur(mask, (125,125))
         return mask
         
-    def apply_color_map(self, bbox):
+    def apply_color_map(self, x1,y1,x2,y2):
         if time.time() - self.st > self.reset_interval:
             self.st = time.time()
             self.reset_heatmap()
 
         # create a mask from image and add it to accum_image
-        mask  = self.get_mask_from_bbox(bbox)
+        mask  = self.get_mask_from_bbox(x1,y1,x2,y2)
         self.accum_image = cv2.add(self.accum_image, mask)
         self.heatmap = cv2.applyColorMap(self.accum_image, cv2.COLORMAP_JET)
         
