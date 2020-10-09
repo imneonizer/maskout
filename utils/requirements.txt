@@ -1,2 +1,2 @@
-pyzmq==19.0.2pip3
+pyzmq==19.0.2
 Flask==1.1.2
