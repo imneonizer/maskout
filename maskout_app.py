@@ -48,6 +48,7 @@ from os import path
 from utils.heatmap_generator import HMap
 from utils.streamer import StreamServer
 stream_server = StreamServer(host="192.168.0.181")
+# stream_server = StreamServer(host="localhost")
 
 fps_streams={}
 frame_count={}
@@ -154,7 +155,7 @@ def generate_heatmap(image,obj_meta,confidence, stream_idx):
     
     hmap.apply_color_map(x1,y1,x2,y2)
     # heatmap_frame = hmap.get_heatmap(image)
-    # stream_server.send(heatmap_frame)
+    stream_server.send(hmap.heatmap)
     # return heatmap_frame
 
 def cb_newpad(decodebin, decoder_src_pad,data):
