@@ -27,7 +27,8 @@ sys.path.append('../')
 import gi
 import configparser
 gi.require_version('Gst', '1.0')
-from gi.repository import GObject, Gst
+gi.require_version('GstRtspServer', '1.0')
+from gi.repository import GObject, Gst, GstRtspServer
 from gi.repository import GLib
 from ctypes import *
 import time
@@ -152,9 +153,9 @@ def generate_heatmap(image,obj_meta,confidence, stream_idx):
         int(rect_params.top) + int(rect_params.height)
     
     hmap.apply_color_map(x1,y1,x2,y2)
-    heatmap_frame = hmap.get_heatmap(image)
-    stream_server.send(heatmap_frame)
-    return heatmap_frame
+    # heatmap_frame = hmap.get_heatmap(image)
+    # stream_server.send(heatmap_frame)
+    # return heatmap_frame
 
 def cb_newpad(decodebin, decoder_src_pad,data):
     print("In cb_newpad\n")
@@ -224,6 +225,7 @@ def create_source_bin(index,uri):
 
 def main(args):
     enable_osd = False
+
     for i in range(0,len(args)-1):
         global HMAP
         name = "stream{0}".format(i)
@@ -331,17 +333,45 @@ def main(args):
     nvosd = Gst.ElementFactory.make("nvdsosd", "onscreendisplay")
     if not nvosd:
         sys.stderr.write(" Unable to create nvosd \n")
-    if(is_aarch64()):
-        print("Creating transform \n ")
-        transform=Gst.ElementFactory.make("nvegltransform", "nvegl-transform")
-        if not transform:
-            sys.stderr.write(" Unable to create transform \n")
+    
+    nvvidconv_postosd = Gst.ElementFactory.make("nvvideoconvert", "convertor_postosd")
+    if not nvvidconv_postosd:
+        sys.stderr.write(" Unable to create nvvidconv_postosd \n")
+    
+    # Create a caps filter
+    caps = Gst.ElementFactory.make("capsfilter", "filter")
+    caps.set_property("caps", Gst.Caps.from_string("video/x-raw(memory:NVMM), format=I420"))
+    
+    # Make the encoder
+    codec = "H264"
+    encoder = Gst.ElementFactory.make("nvv4l2h264enc", "encoder")
+    print("Creating H264 Encoder")
+    if not encoder:
+        sys.stderr.write(" Unable to create encoder")
 
-    print("Creating EGLSink \n")
-    sink = Gst.ElementFactory.make("nveglglessink", "nvvideo-renderer")
-    # sink = Gst.ElementFactory.make("fakesink", "fakesink")
+    bitrate = 40_00_000
+    encoder.set_property('bitrate', bitrate)
+    if is_aarch64():
+        encoder.set_property('preset-level', 1)
+        encoder.set_property('insert-sps-pps', 1)
+        encoder.set_property('bufapi-version', 1)
+    
+    # Make the payload-encode video into RTP packets
+    rtppay = Gst.ElementFactory.make("rtph264pay", "rtppay")
+    print("Creating H264 rtppay")
+    if not rtppay:
+        sys.stderr.write(" Unable to create rtppay")
+    
+    # Make the UDP sink
+    updsink_port_num = 5400
+    sink = Gst.ElementFactory.make("udpsink", "udpsink")
     if not sink:
-        sys.stderr.write(" Unable to create egl sink \n")
+        sys.stderr.write(" Unable to create udpsink")
+    
+    sink.set_property('host', '224.224.255.255')
+    sink.set_property('port', updsink_port_num)
+    sink.set_property('async', False)
+    sink.set_property('sync', 1)
 
     if is_live:
         print("Atleast one of the sources is live")
@@ -351,11 +381,14 @@ def main(args):
     streammux.set_property('height', 720)
     streammux.set_property('batch-size', number_sources)
     streammux.set_property('batched-push-timeout', 4000000)
+
     pgie.set_property('config-file-path', "model/primary_inference.txt")
     pgie_batch_size=pgie.get_property("batch-size")
+
     if(pgie_batch_size != number_sources):
         print("WARNING: Overriding infer-config batch-size",pgie_batch_size," with number of sources ", number_sources," \n")
         pgie.set_property("batch-size",number_sources)
+
     tiler_rows=int(math.sqrt(number_sources))
     tiler_columns=int(math.ceil((1.0*number_sources)/tiler_rows))
     tiler.set_property("rows",tiler_rows)
@@ -383,41 +416,57 @@ def main(args):
     pipeline.add(filter1)
     pipeline.add(nvvidconv1)
     pipeline.add(nvosd)
-    if is_aarch64():
-        pipeline.add(transform)
+    pipeline.add(nvvidconv_postosd)
+    pipeline.add(caps)
+    pipeline.add(encoder)
+    pipeline.add(rtppay)
     pipeline.add(sink)
 
+    # if is_aarch64():
+    #     pipeline.add(transform)
+    # pipeline.add(sink)
+
     print("Linking elements in the Pipeline \n")
+
     streammux.link(pgie)
     if tracker_enable:
         pgie.link(tracker)
         tracker.link(nvvidconv1)
     else:
         pgie.link(nvvidconv1)
+
     nvvidconv1.link(filter1)
     filter1.link(tiler)
     tiler.link(nvvidconv)
+
     if enable_osd:
         nvvidconv.link(nvosd)
-
-    if is_aarch64():
-        if enable_osd:
-            nvosd.link(transform)
-        else:
-            nvvidconv.link(transform)
-        transform.link(sink)
+        nvosd.link(nvvidconv_postosd)
     else:
-        if enable_osd:
-            nvosd.link(sink)
-        else:
-            nvvidconv.link(sink)
+        nvvidconv.link(nvvidconv_postosd)
 
-
+    nvvidconv_postosd.link(caps)
+    caps.link(encoder)
+    encoder.link(rtppay)
+    rtppay.link(sink)
     # create an event loop and feed gstreamer bus mesages to it
     loop = GObject.MainLoop()
     bus = pipeline.get_bus()
     bus.add_signal_watch()
     bus.connect ("message", bus_call, loop)
+
+    # Start streaming
+    rtsp_port_num = 8554
+    server = GstRtspServer.RTSPServer.new()
+    server.props.service = "%d" % rtsp_port_num
+    server.attach(None)
+    
+    factory = GstRtspServer.RTSPMediaFactory.new()
+    factory.set_launch( "( udpsrc name=pay0 port=%d buffer-size=524288 caps=\"application/x-rtp, media=video, clock-rate=90000, encoding-name=(string)%s, payload=96 \" )" % (updsink_port_num, codec))
+    factory.set_shared(True)
+    server.get_mount_points().add_factory("/ds-test", factory)
+    
+    print("\n *** DeepStream: Launched RTSP Streaming at rtsp://localhost:%d/ds-test ***\n\n" % rtsp_port_num)
 
     tiler_sink_pad=tiler.get_static_pad("sink")
     if not tiler_sink_pad:
@@ -432,6 +481,7 @@ def main(args):
             print(i, ": ", source)
 
     print("Starting pipeline \n")
+
     # start play back and listed to events		
     pipeline.set_state(Gst.State.PLAYING)
     try:

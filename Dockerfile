@@ -6,7 +6,10 @@ RUN bash -c "cd /opt/nvidia/deepstream/deepstream/lib && python3 setup.py instal
 RUN apt-get update -y \
     && apt-get install vim python3-numpy python3-opencv -y \
     && apt install python3-gi python3-dev python3-gst-1.0 -y \
-    && apt-get install python3-pip -y
+    && apt-get install python3-pip -y \
+    && apt-get install libgstrtspserver-1.0-0 gstreamer1.0-rtsp -y \
+    && apt-get install libgirepository1.0-dev -y \
+    && apt-get install gobject-introspection gir1.2-gst-rtsp-server-1.0 -y
 
 WORKDIR $DS_PYTHON/apps/maskout
 COPY . .
