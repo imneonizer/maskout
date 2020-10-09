@@ -110,8 +110,8 @@ def tiler_sink_pad_buffer_probe(pad,info,u_data):
             except StopIteration:
                 break
 
-            if time.time() - ST > 0.2:
-                # generate heatmap at intervals
+            # generate heatmap at intervals
+            if time.time() - ST > 0.05:
                 n_frame = pyds.get_nvds_buf_surface(hash(gst_buffer),frame_meta.batch_id)
                 #convert python array into numy array format.
                 frame_image = np.array(n_frame,copy=True,order='C')
@@ -378,7 +378,7 @@ def main(args):
     streammux.set_property('batch-size', number_sources)
     streammux.set_property('batched-push-timeout', 4000000)
 
-    pgie.set_property('config-file-path', "model/primary_inference.txt")
+    pgie.set_property('config-file-path', "model/primary_inference.cfg")
     pgie_batch_size=pgie.get_property("batch-size")
 
     if(pgie_batch_size != number_sources):
