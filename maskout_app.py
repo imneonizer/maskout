@@ -220,12 +220,12 @@ def create_source_bin(index,uri):
     return nbin
 
 def main(args):
-    enable_osd = 0
+    enable_osd = 1
 
     for i in range(0,len(args)-1):
         global HMAP
         name = "stream{0}".format(i)
-        HMAP[i] = HMap(TILED_OUTPUT_WIDTH, TILED_OUTPUT_HEIGHT, name)
+        HMAP[i] = HMap(MUXER_OUTPUT_WIDTH, MUXER_OUTPUT_HEIGHT, name)
         fps_streams[name]=GETFPS(i)
     number_sources=len(args)-1
 
@@ -373,8 +373,8 @@ def main(args):
         print("Atleast one of the sources is live")
         streammux.set_property('live-source', 1)
 
-    streammux.set_property('width', 1280)
-    streammux.set_property('height', 720)
+    streammux.set_property('width', MUXER_OUTPUT_WIDTH)
+    streammux.set_property('height', MUXER_OUTPUT_HEIGHT)
     streammux.set_property('batch-size', number_sources)
     streammux.set_property('batched-push-timeout', 4000000)
 
