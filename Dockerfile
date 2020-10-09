@@ -15,3 +15,4 @@ WORKDIR $DS_PYTHON/apps/maskout
 COPY . .
 
 RUN pip3 install -r utils/requirements.txt
+CMD bash
