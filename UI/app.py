@@ -1,4 +1,4 @@
-from flask import Flask, Response, render_template
+from flask import Flask, Response, render_template, send_file
 from utils.streamer import StreamClient
 import argparse
 
@@ -7,6 +7,10 @@ app = Flask(__name__)
 @app.route("/")
 def index():
     return render_template("index.html")
+
+@app.route("/heat")
+def heat_():
+    return send_file("walking.jpg")
 
 @app.route("/video_feed")
 def video_feed():
@@ -30,5 +34,5 @@ if __name__ == "__main__":
         help="port address to run client application")
     args = ap.parse_args()
 
-    stream_client = StreamClient(host="localhost", rtsp_port=args.rtsp_port, zmq_port=args.zmq_port, client=args.client)
+    # stream_client = StreamClient(host=args.server, rtsp_port=args.rtsp_port, zmq_port=args.zmq_port, client=args.client)
     app.run(debug=True, host="0.0.0.0", port=5000)

@@ -1,9 +1,29 @@
 <html>
   <head>
     <title>MaskOut</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel='stylesheet' href='https://fonts.googleapis.com/css?family=Exo&amp;display=swap'>
   </head>
   <body>
-    <h1>Heatmap</h1>
-    <img src="{{ url_for('video_feed') }}">
+    <div class="container">
+      <div class="area" >
+        <ul class="circles">
+          <li></li>
+          <li></li>
+          <li></li>
+          <li></li>
+          <li></li>
+          <li></li>
+          <li></li>
+          <li></li>
+          <li></li>
+          <li></li>
+        </ul>
+      </div >
+      <div class="header"></div>
+      <img class="frame" src="{{ url_for('video_feed') }}">
+  </div>
+
   </body>
 </html>
