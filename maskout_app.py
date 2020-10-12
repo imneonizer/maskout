@@ -225,7 +225,7 @@ def main(args):
     for i in range(0,len(args)-1):
         global HMAP
         name = "stream{0}".format(i)
-        HMAP[i] = HMap(MUXER_OUTPUT_WIDTH, MUXER_OUTPUT_HEIGHT, name)
+        HMAP[i] = HMap(MUXER_OUTPUT_WIDTH, MUXER_OUTPUT_HEIGHT, name, fade_interval=2)
         fps_streams[name]=GETFPS(i)
     number_sources=len(args)-1
 

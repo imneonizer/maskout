@@ -3,14 +3,14 @@ import numpy as np
 import time
 
 class HMap:
-    def __init__(self, width, height, name, reset_interval=2):
+    def __init__(self, width, height, name, fade_interval=2):
         self.width = width
         self.height = height
         self.name = name
         self.accum_image = np.zeros((self.height, self.width), np.uint8)
         self.heatmap = np.zeros((self.height, self.width), np.uint8)
         
-        self.reset_interval = reset_interval
+        self.fade_interval = fade_interval
         self.st = time.time()
     
     def reset_heatmap(self):
@@ -29,7 +29,7 @@ class HMap:
         return mask
         
     def apply_color_map(self, x1,y1,x2,y2):
-        if time.time() - self.st > self.reset_interval:
+        if time.time() - self.st > self.fade_interval:
             self.st = time.time()
             self.reset_heatmap()
 
