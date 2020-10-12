@@ -1,5 +1,6 @@
 # Maskout
 A Jetson based DeepStream application to identify areas of high risk through intuitive heat maps.
+[Read Medium blog](https://medium.com/@Smartcow_ai/605335f63d50).
 
 ## Workflow
 - If a face without mask is detected then the region will be painted on the screen.
