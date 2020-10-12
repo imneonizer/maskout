@@ -220,7 +220,7 @@ def create_source_bin(index,uri):
     return nbin
 
 def main(args):
-    enable_osd = 1
+    enable_osd = True
 
     for i in range(0,len(args)-1):
         global HMAP
