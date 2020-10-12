@@ -44,7 +44,7 @@ The application is containerized and uses DeepStream as the backbone to run Tens
     ````
     This will keep on fetching frames from the DeepStream container and serving to port `5000`.
     You can keep this application running and restart the DeepStream application with different input streams. visit http://localhost:5000 to view heatmap.
-    ![Heatmap](https://cdn-images-1.medium.com/max/800/1*XzgdKOoWs3oiYGY6G3_6ag.gif)
+    ![Heatmap](Docs/heatmap-browser.png)
 - Under hight load, the RAM consumption went up to 1.2 GB + 600 MB used by Linux Kernel.
 
 ## Notes
