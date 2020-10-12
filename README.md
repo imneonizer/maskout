@@ -13,8 +13,7 @@ A Jetson based DeepStream application to identify areas of high risk through int
 The application is containerized and uses DeepStream as the backbone to run TensorRT optimized models for the maximum throughput. Built on top of [deepstream-imagedata-multistream](https://github.com/NVIDIA-AI-IOT/deepstream_python_apps/tree/master/apps/deepstream-imagedata-multistream) sample app.
 
 ## Steps to run
-- Take any of the Jetson device Nano / NX / TX2 / Xavier
-- Flash it with latest JetPack.
+- I am using Jetson Nano Devkit (2GB), you can set up on any other Jetson device.
 - Make sure `nvidia-docker` is installed on the device (it comes pre-installed with JetPack 4.3+).
 - clone the maskout repository.
     ````
@@ -45,11 +44,12 @@ The application is containerized and uses DeepStream as the backbone to run Tens
     ````
     This will keep on fetching frames from the DeepStream container and serving to port `5000`.
     You can keep this application running and restart the DeepStream application with different input streams. visit http://localhost:5000 to view heatmap.
-    ![Heatmap](Docs/heatmap-browser.png)
+    ![Heatmap](https://cdn-images-1.medium.com/max/800/1*XzgdKOoWs3oiYGY6G3_6ag.gif)
+- Under hight load, the RAM consumption went up to 1.2 GB + 600 MB used by Linux Kernel.
 
 ## Notes
-- The application is containarized and requires 2.6 Gb of free space.
-- While flashing Jetson Nano using SDK manager, unselect `DeepStream` as we are going to use containers, it will save you 800 Mb of storage.
+- The application is containarized and requires 2.6 Gb of disk space.
+- While flashing Jetson Nano using SDK manager, unselect `DeepStream` as we are going to use containers, it will save you 800 Mb of space.
 - After flashing only few MB's are left on the SD card even though your SD card has more storage, this can be reclaimed by going to `Disks` setting then extending the unallocated space with root.
 - If you run out of `RAM` while building or running the container, on Jetson Nano (2Gb) you can:
     - remove `GTK` and run Jetson on headless mode.
