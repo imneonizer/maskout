@@ -2,6 +2,8 @@
 A Jetson based DeepStream application to identify areas of high risk through intuitive heat maps.
 [Read Medium blog](https://medium.com/@Smartcow_ai/605335f63d50).
 
+A better version of this application is available [here](https://github.com/imneonizer/pydstream/tree/main/samples/heatmap-app)
+
 ## Workflow
 - If a face without mask is detected then the region will be painted on the screen.
 - If more and more faces without mask cross through the same region the area will be painted with more intense colors.
