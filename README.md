@@ -55,8 +55,31 @@ The application is containerized and uses DeepStream as the backbone to run Tens
 - While flashing Jetson Nano using SDK manager, unselect `DeepStream` as we are going to use containers, it will save you 800 Mb of space.
 - After flashing only few MB's are left on the SD card even though your SD card has more storage, this can be reclaimed by going to `Disks` setting then extending the unallocated space with root.
 - If you run out of `RAM` while building or running the container, on Jetson Nano (2Gb) you can:
-    - remove `GTK` and run Jetson on headless mode.
+    - remove `GTK` and run Jetson on [headless mode](https://www.forecr.io/blogs/bsp-development/how-to-disable-desktop-gui-on-jetson-modules).
     - add `swap-memory` to get more ram.
 - This application only supports single stream processing.
 - UI can be run sepearately on another machine, it requires two ports for the communication one for rtsp stream and another for heatmap. using this method you can do some of the processing on client side.
 - If you don't care about drawing bounding boxes, the inference can be boosted and more FPS can be achieved by setting `enable_osd = False` in first line of the `main()` inside `maskout_app.py`
+
+
+### How to Disable Desktop GUI on Jetson Modules
+
+If you want to disable the Desktop GUI only temporarily run the following command.
+```
+sudo init 3
+```
+
+To enable the desktop when you finish, run the following command.
+```
+sudo init 5
+```
+
+If you wish to stop Desktop GUI on every reboot, run the following command.
+```
+sudo systemctl set-default multi-user.target
+```
+
+To enable GUI again, run the following command.
+```
+sudo systemctl set-default graphical.target
+```
